@@ -17,9 +17,11 @@ import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.BluetoothLeAdvertiser
 import android.content.Intent
+import android.os.Build
 import android.os.IBinder
 import android.os.ParcelUuid
 import android.util.Log
+import androidx.annotation.RequiresApi
 import com.example.cashierapp.data.models.BluetoothDeviceDomain
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.UUID
@@ -136,6 +138,7 @@ class GATTServerService : Service() {
         }
 
 
+        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
         @SuppressLint("MissingPermission")
         override fun onCharacteristicWriteRequest(
             device: BluetoothDevice?,
@@ -146,15 +149,7 @@ class GATTServerService : Service() {
             offset: Int,
             value: ByteArray?
         ) {
-            super.onCharacteristicWriteRequest(
-                device,
-                requestId,
-                characteristic,
-                preparedWrite,
-                responseNeeded,
-                offset,
-                value
-            )
+            super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite, responseNeeded, offset, value)
 
             Log.d(TAG, "Write request from device: ${device?.address}")
 
@@ -162,24 +157,32 @@ class GATTServerService : Service() {
                 val receivedMessage = value?.toString(Charsets.UTF_8)
                 Log.d(TAG, "Received data: $receivedMessage")
 
-                // Handle the received data using GattServerManager
+                // Handle the received data
                 gattServerManager.handleReceivedData(receivedMessage ?: "")
 
-                // Update the characteristic value
-                characteristic.value = "Acknowledgment: Data received".toByteArray(Charsets.UTF_8)
-                Log.d(TAG, "Characteristic updated with acknowledgment")
+                // Send acknowledgment to the client
+                val acknowledgment = "Acknowledgment: Data received for order $receivedMessage"
+                characteristic.value = acknowledgment.toByteArray(Charsets.UTF_8)
 
-
-                    val responseData = "Response Data from Server".toByteArray(Charsets.UTF_8)
+                // Check if a response is needed
+                if (responseNeeded) {
                     bluetoothGattServer.sendResponse(
                         device,
                         requestId,
-                        BluetoothGatt.GATT_SUCCESS,0,
-                        responseData // Sending response data back to the client
+                        BluetoothGatt.GATT_SUCCESS,
+                        0,
+                        acknowledgment.toByteArray(Charsets.UTF_8)
                     )
 
+                }
+
+                // Send complete order details as a notification to the client
+                val responseData = "Order Process Complete: Details for $receivedMessage"
+                sendManualDataToClient(device, responseData)
             }
         }
+
+
 
         override fun onDescriptorWriteRequest(
             device: BluetoothDevice?,
@@ -217,8 +220,49 @@ class GATTServerService : Service() {
 
 
 }
+    @SuppressLint("MissingPermission")
+    fun sendManualDataToClient(device: BluetoothDevice?, data: String) {
+        val characteristic = bluetoothGattServer.getService(SERVICE_UUID)
+            ?.getCharacteristic(CHARACTERISTIC_UUID)
 
+        if (characteristic != null) {
+            val dataBytes = (data + "END").toByteArray(Charsets.UTF_8)  // Add terminator "END"
 
+            // Break data into chunks if it's too large
+            val maxPacketSize = 20
+            val chunkedData = dataBytes.toList().chunked(maxPacketSize)
+
+            for (chunk in chunkedData) {
+                val chunkArray = chunk.toByteArray()
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    try {
+                        val success: Int = bluetoothGattServer.notifyCharacteristicChanged(device!!, characteristic, false, chunkArray)
+                        if (success == BluetoothGatt.GATT_SUCCESS) {
+                            Log.d(TAG, "Data chunk sent successfully to the client.")
+                        } else {
+                            Log.e(TAG, "Failed to send data chunk to the client. Error code: $success")
+                        }
+                    } catch (e: IllegalArgumentException) {
+                        Log.e(TAG, "Error sending data chunk: ${e.message}")
+                    }
+                } else {
+                    try {
+                        val success: Boolean = bluetoothGattServer.notifyCharacteristicChanged(device, characteristic, false)
+                        if (success) {
+                            Log.d(TAG, "Data chunk sent successfully to the client on lower API.")
+                        } else {
+                            Log.e(TAG, "Failed to send data chunk to the client on lower API.")
+                        }
+                    } catch (e: IllegalArgumentException) {
+                        Log.e(TAG, "Error sending data chunk on lower API: ${e.message}")
+                    }
+                }
+            }
+        } else {
+            Log.e(TAG, "Characteristic not found or not initialized.")
+        }
+    }
 
 
     @SuppressLint("MissingPermission")
