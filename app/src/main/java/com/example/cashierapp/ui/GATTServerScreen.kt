@@ -3,14 +3,12 @@ package com.example.cashierapp.ui
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -28,16 +26,6 @@ fun GATTServerScreen(modifier: Modifier = Modifier, viewModel: GATTServerViewMod
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Buttons at the top
-        Button(onClick = { viewModel.startGattServer() }, modifier = Modifier.fillMaxWidth()) {
-            Text(text = "Start GATT Server")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(onClick = { viewModel.stopGattServer() }, modifier = Modifier.fillMaxWidth()) {
-            Text(text = "Stop GATT Server")
-        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
