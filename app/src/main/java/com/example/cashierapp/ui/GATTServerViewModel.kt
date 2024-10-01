@@ -32,7 +32,14 @@ class GATTServerViewModel @Inject constructor(
     }
 
     // Clear error state
-    fun clearError() {
+    private fun clearError() {
         _errorState.value = null
+    }
+    // Called when the ViewModel is destroyed
+    override fun onCleared() {
+        super.onCleared()
+        // Stop GATT server to clean up resources
+        stopGattServer()
+        clearError()
     }
 }

@@ -11,6 +11,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.Modifier
 import com.example.cashierapp.ui.GATTServerScreen
 import com.example.cashierapp.ui.GATTServerViewModel
 import com.example.cashierapp.ui.reciver.BluetoothStateReceiver
@@ -45,6 +51,7 @@ class MainActivity : ComponentActivity() {
         }
     )
 
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -79,11 +86,23 @@ class MainActivity : ComponentActivity() {
         permissionLauncher.launch(permissionsToRequest)
 
         enableEdgeToEdge()
+        // Set content with Compose
         setContent {
             CashierappTheme {
-                GATTServerScreen()
+                // Scaffold for handling top bars, bottom bars, FAB, etc.
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            title = { Text("GATT Server") }
+                        )
+                    }
+                ) { innerPadding ->
+                    // Pass padding to the screen content
+                    GATTServerScreen(modifier = Modifier.padding(innerPadding))
+                }
             }
-        }
+
+    }
     }
 
     // Handle permission results for both Android 12+ and below
