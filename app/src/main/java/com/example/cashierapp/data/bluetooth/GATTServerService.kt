@@ -268,7 +268,11 @@ class GATTServerService : Service() {
     @SuppressLint("MissingPermission")
     fun stopGattServer() {
         Log.d(TAG, "Stopping GATT server and BLE advertising")
+
+        // Stop advertising
         bluetoothLeAdvertiser.stopAdvertising(advertiseCallback)
+
+        // Close the GATT server
         bluetoothGattServer.close()
     }
 

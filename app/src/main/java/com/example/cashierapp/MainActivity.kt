@@ -146,7 +146,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+
         // Unregister BluetoothStateReceiver when the activity is destroyed
         unregisterReceiver(bluetoothStateReceiver)
     }
+
 }

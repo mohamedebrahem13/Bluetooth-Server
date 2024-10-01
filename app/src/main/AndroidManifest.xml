@@ -35,11 +35,10 @@
             </intent-filter>
         </activity>
 
-        <!-- GATT Server Service -->
         <service
             android:name=".data.bluetooth.GATTServerService"
             android:enabled="true"
-            android:exported="true" />
-
+            android:exported="true"
+            android:permission="android.permission.BLUETOOTH_ADMIN" />
     </application>
 </manifest>
