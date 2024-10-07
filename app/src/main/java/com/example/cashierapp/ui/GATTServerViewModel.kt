@@ -21,12 +21,8 @@ class GATTServerViewModel @Inject constructor(
     private val _errorState = MutableStateFlow<String?>(null)
     val errorState: StateFlow<String?> = _errorState
 
-init {
-    startGattServer()
-}
     fun startGattServer() {
         gattServerManager.startGattServer()
-
     }
 
     fun stopGattServer() {

@@ -50,6 +50,7 @@ class GATTServerService : Service() {
     private lateinit var bluetoothGattServer: BluetoothGattServer
     private lateinit var bluetoothLeAdvertiser: BluetoothLeAdvertiser
 
+
     override fun onCreate() {
         super.onCreate()
         bluetoothLeAdvertiser = bluetoothAdapter.bluetoothLeAdvertiser

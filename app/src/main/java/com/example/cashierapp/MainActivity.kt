@@ -118,6 +118,8 @@ class MainActivity : ComponentActivity() {
             // Check if all essential permissions were granted
             if (canEnableBluetooth && canScanBluetooth && canAdvertiseBluetooth && canAccessFineLocation && canAccessCoarseLocation) {
                 requestBluetoothEnableIfNecessary()
+                gattServerViewModel.startGattServer()
+
             } else {
                 Toast.makeText(this, "Permissions required for Bluetooth functionality", Toast.LENGTH_LONG).show()
             }
@@ -131,6 +133,8 @@ class MainActivity : ComponentActivity() {
             // Check if essential permissions were granted
             if (canUseBluetooth && canUseBluetoothAdmin && canAccessFineLocation && canAccessCoarseLocation) {
                 requestBluetoothEnableIfNecessary()
+                gattServerViewModel.startGattServer()
+
             } else {
                 Toast.makeText(this, "Permissions required for Bluetooth functionality", Toast.LENGTH_LONG).show()
             }
