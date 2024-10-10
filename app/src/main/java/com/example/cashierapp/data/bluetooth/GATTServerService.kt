@@ -30,6 +30,8 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class GATTServerService : Service() {
     private val dataBuffer = mutableMapOf<String, StringBuilder>() // Keep track of incoming chunks per device
+    private val connectedDevices = mutableMapOf<String, BluetoothDevice>()  // Track connected devices
+
 
     companion object {
         val SERVICE_UUID: UUID = UUID.fromString("00002222-0000-1000-8000-00805f9b34fb")
@@ -120,20 +122,27 @@ class GATTServerService : Service() {
             super.onConnectionStateChange(device, status, newState)
 
             device?.let {
-                val bluetoothDeviceDomain = BluetoothDeviceDomain(
-                    name = it.name ?: "Unnamed Device",
-                    address = it.address
-                )
+                val deviceAddress = it.address
 
-                if (newState == BluetoothProfile.STATE_CONNECTED) {
-                    Log.d(TAG, "Device connected: ${bluetoothDeviceDomain.name}")
-                    // Request larger MTU size after connecting
-                    gattServerManager.updateConnectionState(
-                        ConnectionResult.Connected(bluetoothDeviceDomain)
-                    )
-                } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                    Log.d(TAG, "Device disconnected: ${bluetoothDeviceDomain.address}")
-                    gattServerManager.updateConnectionState(ConnectionResult.Disconnected)
+                when (newState) {
+                    BluetoothProfile.STATE_CONNECTING -> {
+                        Log.d(TAG, "Device connecting: $deviceAddress")
+                        gattServerManager.updateConnectionState(deviceAddress, ConnectionResult.Connecting)
+                    }
+                    BluetoothProfile.STATE_CONNECTED -> {
+                        Log.d(TAG, "Device connected: ${it.name ?: "Unnamed"} - $deviceAddress")
+                        connectedDevices[deviceAddress] = it  // Track connected device
+                        gattServerManager.updateConnectionState(deviceAddress, ConnectionResult.Connected(BluetoothDeviceDomain(it.name ?: "Unnamed Device", deviceAddress)))
+                    }
+                    BluetoothProfile.STATE_DISCONNECTED -> {
+                        Log.d(TAG, "Device disconnected: $deviceAddress")
+                        connectedDevices.remove(deviceAddress)  // Remove device from tracking
+                        dataBuffer.remove(deviceAddress)  // Clear buffer
+                        gattServerManager.updateConnectionState(deviceAddress, ConnectionResult.Disconnected)
+                    }
+                    else -> {
+                        Log.d(TAG, "Unknown connection state for $deviceAddress")
+                    }
                 }
             } ?: run {
                 Log.e(TAG, "Device is null on connection state change")
