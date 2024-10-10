@@ -41,6 +41,7 @@ class GATTServerService : Service() {
         const val TAG = "GATTServerService"
     }
 
+
     @Inject
     lateinit var bluetoothManager: BluetoothManager
 
