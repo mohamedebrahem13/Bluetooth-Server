@@ -17,7 +17,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
 fun GATTServerScreen(modifier: Modifier = Modifier, viewModel: GATTServerViewModel = hiltViewModel()) {
-    val connectionStatus by viewModel.connectionStatus.collectAsState()
+    val connectionStatus by viewModel.connectionStates.collectAsState()
     val receivedData by viewModel.receivedData.collectAsState()  // List of orders received
     val errorState by viewModel.errorState.collectAsState()
 

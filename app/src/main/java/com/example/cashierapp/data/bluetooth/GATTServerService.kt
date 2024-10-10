@@ -29,6 +29,9 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class GATTServerService : Service() {
+    private val dataBuffer = mutableMapOf<String, StringBuilder>() // Keep track of incoming chunks per device
+    private val connectedDevices = mutableMapOf<String, BluetoothDevice>()  // Track connected devices
+
 
     companion object {
         val SERVICE_UUID: UUID = UUID.fromString("00002222-0000-1000-8000-00805f9b34fb")
@@ -37,6 +40,7 @@ class GATTServerService : Service() {
 
         const val TAG = "GATTServerService"
     }
+
 
     @Inject
     lateinit var bluetoothManager: BluetoothManager
@@ -119,19 +123,27 @@ class GATTServerService : Service() {
             super.onConnectionStateChange(device, status, newState)
 
             device?.let {
-                val bluetoothDeviceDomain = BluetoothDeviceDomain(
-                    name = it.name ?: "Unnamed Device",
-                    address = it.address
-                )
+                val deviceAddress = it.address
 
-                if (newState == BluetoothProfile.STATE_CONNECTED) {
-                    Log.d(TAG, "Device connected: ${bluetoothDeviceDomain.name}")
-                    gattServerManager.updateConnectionState(
-                        ConnectionResult.Connected(bluetoothDeviceDomain)
-                    )
-                } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                    Log.d(TAG, "Device disconnected: ${bluetoothDeviceDomain.address}")
-                    gattServerManager.updateConnectionState(ConnectionResult.Disconnected)
+                when (newState) {
+                    BluetoothProfile.STATE_CONNECTING -> {
+                        Log.d(TAG, "Device connecting: $deviceAddress")
+                        gattServerManager.updateConnectionState(deviceAddress, ConnectionResult.Connecting)
+                    }
+                    BluetoothProfile.STATE_CONNECTED -> {
+                        Log.d(TAG, "Device connected: ${it.name ?: "Unnamed"} - $deviceAddress")
+                        connectedDevices[deviceAddress] = it  // Track connected device
+                        gattServerManager.updateConnectionState(deviceAddress, ConnectionResult.Connected(BluetoothDeviceDomain(it.name ?: "Unnamed Device", deviceAddress)))
+                    }
+                    BluetoothProfile.STATE_DISCONNECTED -> {
+                        Log.d(TAG, "Device disconnected: $deviceAddress")
+                        connectedDevices.remove(deviceAddress)  // Remove device from tracking
+                        dataBuffer.remove(deviceAddress)  // Clear buffer
+                        gattServerManager.updateConnectionState(deviceAddress, ConnectionResult.Disconnected)
+                    }
+                    else -> {
+                        Log.d(TAG, "Unknown connection state for $deviceAddress")
+                    }
                 }
             } ?: run {
                 Log.e(TAG, "Device is null on connection state change")
@@ -154,18 +166,38 @@ class GATTServerService : Service() {
 
             Log.d(TAG, "Write request from device: ${device?.address}")
 
-            if (characteristic?.uuid == CHARACTERISTIC_UUID) {
-                val receivedMessage = value?.toString(Charsets.UTF_8)
-                Log.d(TAG, "Received data: $receivedMessage")
+            if (characteristic?.uuid == CHARACTERISTIC_UUID && device != null) {
+                val deviceAddress = device.address
+                val receivedMessage = value?.toString(Charsets.UTF_8) ?: ""
 
-                // Handle the received data
-                gattServerManager.handleReceivedData(receivedMessage ?: "")
+                // Append the received chunk to the buffer for this device
+                val buffer = dataBuffer.getOrPut(deviceAddress) { StringBuilder() }
+                buffer.append(receivedMessage)
+
+                Log.d(TAG, "Buffered data for $deviceAddress: $buffer")
+
+                // Check if the buffer contains the "END" marker indicating the complete message has been received
+                if (buffer.contains("END")) {
+                    // Complete message received, remove "END" marker
+                    val completeData = buffer.toString().substringBefore("END")  // Get everything before "END"
+
+                    Log.d(TAG, "Complete data received: $completeData")
+
+                    // Process the complete data as one shot
+                    gattServerManager.handleReceivedData(completeData)
+
+                    // Send complete order details as a notification to the client
+                    val responseData = "Order Process Complete: Details for $completeData"
+                    sendManualDataToClient(device, responseData)
+
+                    // Clear the buffer for this device after processing
+                    dataBuffer.remove(deviceAddress)
+                }
 
                 // Send acknowledgment to the client
-                val acknowledgment = "Acknowledgment: Data received for order $receivedMessage"
+                val acknowledgment = "Acknowledgment: Data received"
                 characteristic.value = acknowledgment.toByteArray(Charsets.UTF_8)
 
-                // Check if a response is needed
                 if (responseNeeded) {
                     bluetoothGattServer.sendResponse(
                         device,
@@ -174,15 +206,9 @@ class GATTServerService : Service() {
                         0,
                         acknowledgment.toByteArray(Charsets.UTF_8)
                     )
-
                 }
-
-                // Send complete order details as a notification to the client
-                val responseData = "Order Process Complete: Details for $receivedMessage"
-                sendManualDataToClient(device, responseData)
             }
         }
-
 
 
         override fun onDescriptorWriteRequest(

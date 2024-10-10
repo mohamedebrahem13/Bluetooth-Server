@@ -14,7 +14,7 @@ class GATTServerViewModel @Inject constructor(
 ) : ViewModel() {
 
     // Directly expose the connectionState and receivedData from GattServerManager
-    val connectionStatus: StateFlow<ConnectionResult> = gattServerManager.connectionState
+    val connectionStates: StateFlow<Map<String, ConnectionResult>> = gattServerManager.connectionStates
     val receivedData: StateFlow<List<String>> = gattServerManager.receivedOrders
 
     // Error state
